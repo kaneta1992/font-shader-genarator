@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"image/png"
 	"log"
+	"math"
 	"os"
 
 	"github.com/llgcode/draw2d/draw2dimg"
@@ -80,6 +81,38 @@ func wrap(x, y int) int {
 	return ((x % y) + y) % y
 }
 
+func signedArea(points [][2]float64) float64 {
+	lp := len(points)
+	area := 0.0
+	for i, _ := range points {
+		v1 := points[i]
+		v2 := points[wrap(i+1, lp)]
+		area += v1[0]*v2[1] - v1[1]*v2[0]
+	}
+	return area
+}
+
+func subVec2(v1, v2 [2]float64) [2]float64 {
+	return [2]float64{v1[0] - v2[0], v1[1] - v2[1]}
+}
+
+func addVec2(v1, v2 [2]float64) [2]float64 {
+	return [2]float64{v1[0] + v2[0], v1[1] + v2[1]}
+}
+
+func mulVec2(v [2]float64, s float64) [2]float64 {
+	return [2]float64{v[0] * s, v[1] * s}
+}
+
+func length(v [2]float64) float64 {
+	return math.Sqrt(v[0]*v[0] + v[1]*v[1])
+}
+
+func normalize(v [2]float64) [2]float64 {
+	l := length(v)
+	return [2]float64{v[0] / l, v[1] / l}
+}
+
 func getPath(points [][2]float64) ([][2]float64, [][2]int32, [][2]float64) {
 	nextIndex := len(pts)
 	lp := len(points)
@@ -91,15 +124,43 @@ func getPath(points [][2]float64) ([][2]float64, [][2]int32, [][2]float64) {
 		retPts = append(retPts, p)
 		retSegs = append(retSegs, [2]int32{int32(nextIndex + wrap(i-1, lp)), int32(nextIndex + i)})
 	}
-	//TODO 左回りの時はholeを置く
+
+	// 左回りのパスは切り抜き用の穴を設定する
+	area := signedArea(points)
+	if area < 0.0 {
+		// 穴を置く起点の頂点
+		v0 := points[0]
+		v1 := points[1]
+		v2 := points[2]
+		// 各頂点へのベクトル
+		e0 := subVec2(v0, v1)
+		e1 := subVec2(v2, v1)
+		// ハーフベクトル
+		hv := normalize(addVec2(e0, e1))
+		// 起点頂点のハーフベクトルに少し動かした場所を穴とする
+		retHoles = append(retHoles, addVec2(v1, mulVec2(hv, 0.00001)))
+	}
 	return retPts, retSegs, retHoles
 }
 
 func putsRect(x, y, w, h float64) {
 	hw := w / 2.0
 	hh := h / 2.0
+	// 右回りで配置する
 	p, s, ho := getPath([][2]float64{
 		{x - hw, y - hh}, {x + hw, y - hh}, {x + hw, y + hh}, {x - hw, y + hh},
+	})
+	pts = append(pts, p...)
+	segs = append(segs, s...)
+	holes = append(holes, ho...)
+}
+
+func cutsRect(x, y, w, h float64) {
+	hw := w / 2.0
+	hh := h / 2.0
+	// 左回りで配置する
+	p, s, ho := getPath([][2]float64{
+		{x - hw, y - hh}, {x - hw, y + hh}, {x + hw, y + hh}, {x + hw, y - hh},
 	})
 	pts = append(pts, p...)
 	segs = append(segs, s...)
@@ -110,7 +171,11 @@ func main() {
 	holes = [][2]float64{
 		{99999.9, 99999.9}, // 穴がない時用の点
 	}
+	cutsRect(0.0, 0.0, 0.1, 0.1)
+	cutsRect(0.0, 0.0, 0.025, 0.025)
+	cutsRect(-0.2, -0.3, 0.2, 0.1)
 	putsRect(0.0, 0.0, 0.2, 0.2)
+	putsRect(0.0, 0.0, 0.05, 0.05)
 	putsRect(0.2, 0.3, 0.3, 0.2)
 	putsRect(-0.2, -0.3, 0.3, 0.2)
 
@@ -129,6 +194,7 @@ func main() {
 	drawFaces(verts, faces)
 	//drawSegs(verts, segs)
 	drawPts(verts)
+	//drawPts(holes)
 
 	outfile, _ := os.Create("out.png")
 	defer outfile.Close()
