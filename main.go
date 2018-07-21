@@ -12,6 +12,11 @@ import (
 )
 
 var v float64 = 512.0
+
+var pts = [][2]float64{}
+var segs = [][2]int32{}
+var holes = [][2]float64{}
+
 var gc *draw2dimg.GraphicContext
 
 func drawFaces(verts [][2]float64, faces [][3]int32) {
@@ -71,20 +76,49 @@ func drawPts(verts [][2]float64) {
 	}
 }
 
+func wrap(x, y int) int {
+	return ((x % y) + y) % y
+}
+
+func getPath(points [][2]float64) ([][2]float64, [][2]int32, [][2]float64) {
+	nextIndex := len(pts)
+	lp := len(points)
+	retPts := [][2]float64{}
+	retSegs := [][2]int32{}
+	retHoles := [][2]float64{}
+
+	for i, p := range points {
+		retPts = append(retPts, p)
+		retSegs = append(retSegs, [2]int32{int32(nextIndex + wrap(i-1, lp)), int32(nextIndex + i)})
+	}
+	//TODO 左回りの時はholeを置く
+	return retPts, retSegs, retHoles
+}
+
+func putsRect(x, y, w, h float64) {
+	hw := w / 2.0
+	hh := h / 2.0
+	p, s, ho := getPath([][2]float64{
+		{x - hw, y - hh}, {x + hw, y - hh}, {x + hw, y + hh}, {x - hw, y + hh},
+	})
+	pts = append(pts, p...)
+	segs = append(segs, s...)
+	holes = append(holes, ho...)
+}
+
 func main() {
-	var pts = [][2]float64{{-0.1, -0.1}, {-0.5, -0.1}, {-0.5, -0.5}, {-0.1, -0.5}, {0.1, 0.1}, {0.5, 0.1}, {0.5, 0.5}, {0.1, 0.5},
-		{0.15, 0.15}, {0.45, 0.15}, {0.45, 0.45}, {0.15, 0.45}, {0.2, 0.2}, {0.4, 0.2}, {0.4, 0.4}, {0.2, 0.4},
-		{0.25, 0.25}, {0.35, 0.25}, {0.35, 0.35}, {0.25, 0.35},
-	}
-	var segs = [][2]int32{{3, 0}, {0, 1}, {1, 2}, {2, 3}, {7, 4}, {4, 5}, {5, 6}, {6, 7}, {11, 8}, {8, 9}, {9, 10}, {10, 11}, {15, 12}, {12, 13}, {13, 14}, {14, 15}, {19, 16}, {16, 17}, {17, 18}, {18, 19}}
-	var holes = [][2]float64{
+	holes = [][2]float64{
 		{99999.9, 99999.9}, // 穴がない時用の点
-		{0.16, 0.44},
-		{0.26, 0.34},
 	}
+	putsRect(0.0, 0.0, 0.2, 0.2)
+	putsRect(0.2, 0.3, 0.3, 0.2)
+	putsRect(-0.2, -0.3, 0.3, 0.2)
+
 	verts, faces := triangle.ConstrainedDelaunay(pts, segs, holes)
 	log.Print(pts)
 	log.Print(segs)
+	log.Print(holes)
+	log.Print("-------------------------------")
 	log.Print(verts)
 	log.Print(faces)
 
