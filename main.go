@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"image/color"
 	"image/png"
 	"log"
 	"os"
@@ -14,6 +15,8 @@ var v float64 = 500.0
 var gc *draw2dimg.GraphicContext
 
 func drawFaces(verts [][2]float64, faces [][3]int32) {
+	gc.SetStrokeColor(color.RGBA{50, 50, 50, 255})
+	gc.SetLineWidth(2.0)
 	for _, f := range faces {
 		p0 := verts[f[0]]
 		p1 := verts[f[1]]
@@ -35,6 +38,8 @@ func drawFaces(verts [][2]float64, faces [][3]int32) {
 }
 
 func drawSegs(verts [][2]float64, segs [][2]int32) {
+	gc.SetStrokeColor(color.RGBA{50, 50, 255, 255})
+	gc.SetLineWidth(2.0)
 	for _, s := range segs {
 		p0 := verts[s[0]]
 		p1 := verts[s[1]]
@@ -51,30 +56,31 @@ func drawSegs(verts [][2]float64, segs [][2]int32) {
 }
 
 func drawPts(verts [][2]float64) {
+	gc.SetStrokeColor(color.RGBA{255, 50, 50, 255})
+	gc.SetLineWidth(3.0)
 	for _, p := range verts {
 		x1 := p[0]*v + v
 		y1 := p[1]*v + v
 
-		gc.MoveTo(x1, y1)
-		gc.LineTo(x1, y1-20.0)
+		gc.MoveTo(x1-10, y1)
+		gc.LineTo(x1+10, y1)
+		gc.MoveTo(x1, y1-10)
+		gc.LineTo(x1, y1+10)
+
 		gc.Stroke()
 	}
 }
 
 func main() {
-	// Points forming the shape of letter "A"
-	var pts = [][2]float64{{0.200000, -0.776400}, {0.220000, -0.773200},
-		{0.245600, -0.756400}, {0.277600, -0.702000}, {0.488800, -0.207600}, {0.504800, -0.207600}, {0.740800, -0.7396}, {0.756000, -0.761200},
-		{0.774400, -0.7724}, {0.800000, -0.776400}, {0.800000, -0.792400}, {0.579200, -0.792400}, {0.579200, -0.776400}, {0.621600, -0.771600},
-		{0.633600, -0.762800}, {0.639200, -0.744400}, {0.620800, -0.684400}, {0.587200, -0.604400}, {0.360800, -0.604400}, {0.319200, -0.706800},
-		{0.312000, -0.739600}, {0.318400, -0.761200}, {0.334400, -0.771600}, {0.371200, -0.776400}, {0.371200, -0.792400}, {0.374400, -0.570000},
-		{0.574400, -0.5700}, {0.473600, -0.330800}, {0.200000, -0.792400},
+	var pts = [][2]float64{{-0.1, -0.1}, {-0.5, -0.1}, {-0.5, -0.5}, {-0.1, -0.5}, {0.1, 0.1}, {0.5, 0.1}, {0.5, 0.5}, {0.1, 0.5},
+		{0.15, 0.15}, {0.45, 0.15}, {0.45, 0.45}, {0.15, 0.45}, {0.2, 0.2}, {0.4, 0.2}, {0.4, 0.4}, {0.2, 0.4},
+		{0.25, 0.25}, {0.35, 0.25}, {0.35, 0.35}, {0.25, 0.35},
 	}
-	// Segments connecting the points
-	var segs = [][2]int32{{28, 0}, {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8}, {8, 9}, {9, 10}, {10, 11}, {11, 12}, {12, 13}, {13, 14}, {14, 15}, {15, 16}, {16, 17}, {17, 18}, {18, 19}, {19, 20}, {20, 21}, {21, 22}, {22, 23}, {23, 24}, {24, 28}, {25, 26}, {26, 27}, {27, 25}}
-	// Hole represented by a point lying inside it
+	var segs = [][2]int32{{3, 0}, {0, 1}, {1, 2}, {2, 3}, {7, 4}, {4, 5}, {5, 6}, {6, 7}, {11, 8}, {8, 9}, {9, 10}, {10, 11}, {15, 12}, {12, 13}, {13, 14}, {14, 15}, {19, 16}, {16, 17}, {17, 18}, {18, 19}}
 	var holes = [][2]float64{
-		{0.47, -0.5},
+		{99999.9, 99999.9}, // 穴がない時用の点
+		{0.16, 0.44},
+		{0.26, 0.34},
 	}
 	verts, faces := triangle.ConstrainedDelaunay(pts, segs, holes)
 	log.Print(pts)
@@ -85,10 +91,10 @@ func main() {
 	rgba := image.NewRGBA(image.Rect(0, 0, 1024, 1024))
 
 	gc = draw2dimg.NewGraphicContext(rgba)
-	//drawPts(verts)
-	//drawSegs(verts, segs)
 
 	drawFaces(verts, faces)
+	//drawSegs(verts, segs)
+	drawPts(verts)
 
 	outfile, _ := os.Create("out.png")
 	defer outfile.Close()
