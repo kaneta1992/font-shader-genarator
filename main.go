@@ -11,7 +11,7 @@ import (
 	"github.com/pradeep-pyro/triangle"
 )
 
-var v float64 = 500.0
+var v float64 = 512.0
 var gc *draw2dimg.GraphicContext
 
 func drawFaces(verts [][2]float64, faces [][3]int32) {
@@ -88,7 +88,7 @@ func main() {
 	log.Print(verts)
 	log.Print(faces)
 
-	rgba := image.NewRGBA(image.Rect(0, 0, 1024, 1024))
+	rgba := image.NewRGBA(image.Rect(0, 0, int(v*2.0), int(v*2.0)))
 
 	gc = draw2dimg.NewGraphicContext(rgba)
 
