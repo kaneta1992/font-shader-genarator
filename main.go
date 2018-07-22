@@ -1,18 +1,23 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"io/ioutil"
 	"log"
 	"math"
 	"os"
+	"strings"
 
+	"github.com/JoshVarga/svgparser"
+	"github.com/JoshVarga/svgparser/utils"
 	"github.com/llgcode/draw2d/draw2dimg"
 	"github.com/pradeep-pyro/triangle"
 )
 
-var v float64 = 512.0
+var v float64 = 2048.0
 
 var pts = [][2]float64{}
 var segs = [][2]int32{}
@@ -62,7 +67,11 @@ func drawSegs(verts [][2]float64, segs [][2]int32) {
 }
 
 func drawPts(verts [][2]float64) {
+	area := signedArea(verts)
 	gc.SetStrokeColor(color.RGBA{255, 50, 50, 255})
+	if area < 0.0 {
+		gc.SetStrokeColor(color.RGBA{50, 255, 50, 255})
+	}
 	gc.SetLineWidth(3.0)
 	for _, p := range verts {
 		x1 := p[0]*v + v
@@ -138,7 +147,14 @@ func getPath(points [][2]float64) ([][2]float64, [][2]int32, [][2]float64) {
 		// ハーフベクトル
 		hv := normalize(addVec2(e0, e1))
 		// 起点頂点のハーフベクトルに少し動かした場所を穴とする
-		retHoles = append(retHoles, addVec2(v1, mulVec2(hv, 0.00001)))
+		triArea := signedArea([][2]float64{v0, v1, v2})
+		if triArea < 0.0 {
+			// 起点の三角形が左回りなら内向きなのでハーフベクトル方向へ
+			retHoles = append(retHoles, addVec2(v1, mulVec2(hv, 0.00001)))
+		} else {
+			// 右回りなら外向きなのでハーフベクトルの逆方向へ
+			retHoles = append(retHoles, subVec2(v1, mulVec2(hv, 0.00001)))
+		}
 	}
 	return retPts, retSegs, retHoles
 }
@@ -167,17 +183,61 @@ func cutsRect(x, y, w, h float64) {
 	holes = append(holes, ho...)
 }
 
+func putPath(points [][2]float64) {
+	p, s, h := getPath(points)
+	pts = append(pts, p...)
+	segs = append(segs, s...)
+	holes = append(holes, h...)
+}
+
 func main() {
 	holes = [][2]float64{
 		{99999.9, 99999.9}, // 穴がない時用の点
 	}
-	cutsRect(0.0, 0.0, 0.1, 0.1)
-	cutsRect(0.0, 0.0, 0.025, 0.025)
-	cutsRect(-0.2, -0.3, 0.2, 0.1)
-	putsRect(0.0, 0.0, 0.2, 0.2)
-	putsRect(0.0, 0.0, 0.05, 0.05)
-	putsRect(0.2, 0.3, 0.3, 0.2)
-	putsRect(-0.2, -0.3, 0.3, 0.2)
+
+	svg, err := ioutil.ReadFile("nazo.svg")
+	if err != nil {
+		log.Fatal("io error")
+	}
+	reader := strings.NewReader(string(svg))
+	element, _ := svgparser.Parse(reader, false)
+	fmt.Printf("Circle fill: %s", element.Children[0].Children[0].Name)
+	d := element.Children[0].Children[0].Attributes["d"]
+	path, _ := utils.PathParser(d)
+	fmt.Printf("Number of subpaths: %d\n", len(path.Subpaths))
+
+	rgba := image.NewRGBA(image.Rect(0, 0, int(v*2.0), int(v*2.0)))
+
+	gc = draw2dimg.NewGraphicContext(rgba)
+
+	rate := 5000.0
+	for i, subpath := range path.Subpaths {
+		fmt.Printf("Path %d: ", i)
+		points := [][2]float64{}
+		for _, command := range subpath.Commands {
+			param := []float64(command.Params)
+			switch command.Symbol {
+			case "M":
+				points = append(points, [][2]float64{{param[0] / rate, param[1] / rate}}...)
+			case "L":
+				points = append(points, [][2]float64{{param[0] / rate, param[1] / rate}}...)
+			case "Q":
+				points = append(points, [][2]float64{{param[0] / rate, param[1] / rate}, {param[2] / rate, param[3] / rate}}...)
+			default:
+			}
+		}
+		fmt.Println(points)
+		putPath(points)
+		drawPts(points)
+	}
+
+	//cutsRect(0.0, 0.0, 0.1, 0.1)
+	//cutsRect(0.0, 0.0, 0.025, 0.025)
+	//cutsRect(-0.2, -0.3, 0.2, 0.1)
+	//putsRect(0.0, 0.0, 0.2, 0.2)
+	//putsRect(0.0, 0.0, 0.05, 0.05)
+	//putsRect(0.2, 0.3, 0.3, 0.2)
+	//putsRect(-0.2, -0.3, 0.3, 0.2)
 
 	verts, faces := triangle.ConstrainedDelaunay(pts, segs, holes)
 	log.Print(pts)
@@ -187,14 +247,9 @@ func main() {
 	log.Print(verts)
 	log.Print(faces)
 
-	rgba := image.NewRGBA(image.Rect(0, 0, int(v*2.0), int(v*2.0)))
-
-	gc = draw2dimg.NewGraphicContext(rgba)
-
-	drawFaces(verts, faces)
-	//drawSegs(verts, segs)
-	drawPts(verts)
+	//drawFaces(verts, faces)
 	//drawPts(holes)
+	drawSegs(verts, segs)
 
 	outfile, _ := os.Create("out.png")
 	defer outfile.Close()
