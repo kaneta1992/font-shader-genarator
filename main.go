@@ -195,13 +195,12 @@ func main() {
 		{99999.9, 99999.9}, // 穴がない時用の点
 	}
 
-	svg, err := ioutil.ReadFile("nazo.svg")
+	svg, err := ioutil.ReadFile("q.svg")
 	if err != nil {
 		log.Fatal("io error")
 	}
 	reader := strings.NewReader(string(svg))
 	element, _ := svgparser.Parse(reader, false)
-	fmt.Printf("Circle fill: %s", element.Children[0].Children[0].Name)
 	d := element.Children[0].Children[0].Attributes["d"]
 	path, _ := utils.PathParser(d)
 	fmt.Printf("Number of subpaths: %d\n", len(path.Subpaths))
@@ -210,22 +209,35 @@ func main() {
 
 	gc = draw2dimg.NewGraphicContext(rgba)
 
+	// TODO: 頂点をみて自動で正規化する
 	rate := 5000.0
 	for i, subpath := range path.Subpaths {
 		fmt.Printf("Path %d: ", i)
 		points := [][2]float64{}
+		var nowPoint []float64
 		for _, command := range subpath.Commands {
 			param := []float64(command.Params)
 			switch command.Symbol {
 			case "M":
 				points = append(points, [][2]float64{{param[0] / rate, param[1] / rate}}...)
+				nowPoint = []float64{param[0], param[1]}
 			case "L":
 				points = append(points, [][2]float64{{param[0] / rate, param[1] / rate}}...)
+				nowPoint = []float64{param[0], param[1]}
 			case "Q":
-				points = append(points, [][2]float64{{param[0] / rate, param[1] / rate}, {param[2] / rate, param[3] / rate}}...)
+				area := signedArea([][2]float64{{nowPoint[0], nowPoint[1]}, {param[0], param[1]}, {param[2], param[3]}})
+				if area < 0.0 {
+					// 左回りなら制御点が内部(右)にいるので制御点も含めた頂点を追加する
+					points = append(points, [][2]float64{{param[0] / rate, param[1] / rate}, {param[2] / rate, param[3] / rate}}...)
+				} else {
+					// 右回りなら制御点が外部(左)にいるので制御点を無視する
+					points = append(points, [2]float64{param[2] / rate, param[3] / rate})
+				}
+				nowPoint = []float64{param[2], param[3]}
 			default:
 			}
 		}
+		// TODO: 曲線の制御点のインデックスを考慮して三角分割する
 		fmt.Println(points)
 		putPath(points)
 		drawPts(points)
@@ -247,9 +259,9 @@ func main() {
 	log.Print(verts)
 	log.Print(faces)
 
-	//drawFaces(verts, faces)
+	drawFaces(verts, faces)
 	//drawPts(holes)
-	drawSegs(verts, segs)
+	//drawSegs(verts, segs)
 
 	outfile, _ := os.Create("out.png")
 	defer outfile.Close()
