@@ -12,6 +12,7 @@ import (
 
 	"github.com/JoshVarga/svgparser"
 	"github.com/JoshVarga/svgparser/utils"
+	tpath "github.com/kaneta1992/try-triangle/glyph"
 	"github.com/kaneta1992/vector/vector2"
 	"github.com/llgcode/draw2d/draw2dimg"
 	"github.com/pradeep-pyro/triangle"
@@ -26,6 +27,7 @@ var holes = []*vec.Vector2{}
 var gc *draw2dimg.GraphicContext
 
 func drawFaces(verts []*vec.Vector2, faces [][3]int32) {
+
 	gc.SetStrokeColor(color.RGBA{50, 50, 50, 255})
 	gc.SetLineWidth(2.0)
 	for _, f := range faces {
@@ -184,21 +186,26 @@ func main() {
 
 	// TODO: 頂点をみて自動で正規化する
 	irate := 1.0 / 5000.0
+	glyph := &tpath.Glyph{}
 	for i, subpath := range path.Subpaths {
 		fmt.Printf("Path %d: ", i)
 		points := []*vec.Vector2{}
 		var nowPoint *vec.Vector2
+		contour := &tpath.Contour{}
 		for _, command := range subpath.Commands {
 			param := []float64(command.Params)
+			// TODO: 構造体化する
 			switch command.Symbol {
 			case "M":
 				v1 := &vec.Vector2{param[0], param[1]}
 				points = append(points, v1.MulScalar(irate))
 				nowPoint = v1
+				contour.ToMove(v1.MulScalar(irate))
 			case "L":
 				v1 := &vec.Vector2{param[0], param[1]}
 				points = append(points, v1.MulScalar(irate))
 				nowPoint = v1
+				contour.ToLine(v1.MulScalar(irate))
 			case "Q":
 				v1 := &vec.Vector2{param[0], param[1]}
 				v2 := &vec.Vector2{param[2], param[3]}
@@ -208,9 +215,11 @@ func main() {
 					points = append(points, []*vec.Vector2{v1.MulScalar(irate), v2.MulScalar(irate)}...)
 				} else {
 					// 右回りなら制御点が外部(左)にいるので制御点を無視する
-					points = append(points, v2.MulScalar(irate))
+					//points = append(points, v2.MulScalar(irate))
+					points = append(points, []*vec.Vector2{v1.MulScalar(irate), v2.MulScalar(irate)}...)
 				}
 				nowPoint = v2
+				contour.ToCurve(v1.MulScalar(irate), v2.MulScalar(irate))
 			default:
 			}
 		}
@@ -218,7 +227,13 @@ func main() {
 		fmt.Println(points)
 		putPath(points)
 		drawPts(points)
+		glyph.AddContour(contour)
 	}
+	ps, ss := glyph.CreatePointsAndInnerSegments()
+	fmt.Print(ps)
+	fmt.Print(ss)
+	fmt.Print(pts)
+	fmt.Print(segs)
 
 	//cutsRect(0.0, 0.0, 0.1, 0.1)
 	//cutsRect(0.0, 0.0, 0.025, 0.025)
