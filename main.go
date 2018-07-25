@@ -170,7 +170,7 @@ func main() {
 		{99999.9, 99999.9}, // 穴がない時用の点
 	}
 
-	svg, err := ioutil.ReadFile("nazo.svg")
+	svg, err := ioutil.ReadFile("q.svg")
 	if err != nil {
 		log.Fatal("io error")
 	}
@@ -215,8 +215,7 @@ func main() {
 					points = append(points, []*vec.Vector2{v1.MulScalar(irate), v2.MulScalar(irate)}...)
 				} else {
 					// 右回りなら制御点が外部(左)にいるので制御点を無視する
-					//points = append(points, v2.MulScalar(irate))
-					points = append(points, []*vec.Vector2{v1.MulScalar(irate), v2.MulScalar(irate)}...)
+					points = append(points, v2.MulScalar(irate))
 				}
 				nowPoint = v2
 				contour.ToCurve(v1.MulScalar(irate), v2.MulScalar(irate))
@@ -226,14 +225,16 @@ func main() {
 		// TODO: 曲線の制御点のインデックスを考慮して三角分割する
 		fmt.Println(points)
 		putPath(points)
-		drawPts(points)
 		glyph.AddContour(contour)
 	}
 	ps, ss := glyph.CreatePointsAndInnerSegments()
-	fmt.Print(ps)
-	fmt.Print(ss)
-	fmt.Print(pts)
-	fmt.Print(segs)
+	log.Print(ps)
+	log.Print(ss)
+	log.Print(pts)
+	log.Print(segs)
+	log.Print("------------------")
+	pts = ps
+	segs = ss
 
 	//cutsRect(0.0, 0.0, 0.1, 0.1)
 	//cutsRect(0.0, 0.0, 0.025, 0.025)
@@ -252,8 +253,9 @@ func main() {
 	log.Print(faces)
 
 	drawFaces(vec.Float64ToVec2(verts), faces)
-	//drawPts(holes)
-	//drawSegs(verts, segs)
+	drawPts(holes)
+	drawPts(pts)
+	drawSegs(vec.Float64ToVec2(verts), segs)
 
 	outfile, _ := os.Create("out.png")
 	defer outfile.Close()
