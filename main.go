@@ -170,7 +170,7 @@ func main() {
 		{99999.9, 99999.9}, // 穴がない時用の点
 	}
 
-	svg, err := ioutil.ReadFile("q.svg")
+	svg, err := ioutil.ReadFile("nazo.svg")
 	if err != nil {
 		log.Fatal("io error")
 	}
@@ -227,14 +227,21 @@ func main() {
 		putPath(points)
 		glyph.AddContour(contour)
 	}
-	ps, ss := glyph.CreatePointsAndInnerSegments()
+	ps, ss, ho := glyph.CreatePointsAndInnerSegments()
 	log.Print(ps)
 	log.Print(ss)
+	log.Print(ho)
+	log.Print("------------------")
 	log.Print(pts)
 	log.Print(segs)
+	log.Print(holes)
 	log.Print("------------------")
 	pts = ps
 	segs = ss
+	holes = []*vec.Vector2{
+		{99999.9, 99999.9}, // 穴がない時用の点
+	}
+	holes = append(holes, ho...)
 
 	//cutsRect(0.0, 0.0, 0.1, 0.1)
 	//cutsRect(0.0, 0.0, 0.025, 0.025)

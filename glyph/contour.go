@@ -62,6 +62,8 @@ func signedArea(points []*vec.Vector2) float64 {
 	}
 	return area
 }
+
+// TODO: リンクドリストにしたい
 func (c *Contour) CreateInnerSegments(offset int) [][2]int32 {
 	ret := [][2]int32{}
 	max := c.NumPoints()
@@ -96,4 +98,32 @@ func (c *Contour) CreateInnerSegments(offset int) [][2]int32 {
 		}
 	}
 	return ret
+}
+
+func (c *Contour) getHolePoint() *vec.Vector2 {
+	points := c.getPoints()
+	segments := c.CreateInnerSegments(0)
+	// 左回りのパスは切り抜き用の穴を設定する
+	area := signedArea(points)
+	if area < 0.0 {
+		// 穴を置く起点の頂点
+		v0 := points[segments[0][1]]
+		v1 := points[segments[1][1]]
+		v2 := points[segments[2][1]]
+		// 各頂点へのベクトル
+		e0 := v0.Sub(v1)
+		e1 := v2.Sub(v1)
+		// ハーフベクトル
+		hv := e0.Add(e1).Normalize()
+		// 起点頂点のハーフベクトルに少し動かした場所を穴とする
+		triArea := signedArea([]*vec.Vector2{v0, v1, v2})
+		if triArea < 0.0 {
+			// 起点の三角形が左回りなら内向きなのでハーフベクトル方向へ
+			return v1.Add(hv.MulScalar(0.001))
+		} else {
+			// 右回りなら外向きなのでハーフベクトルの逆方向へ
+			return v1.Sub(hv.MulScalar(0.001))
+		}
+	}
+	return nil
 }
