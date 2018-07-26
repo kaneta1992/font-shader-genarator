@@ -9,7 +9,7 @@ type Glyph struct {
 func (g *Glyph) CreatePointsAndInnerSegments() ([]*vec.Vector2, [][2]int32, []*vec.Vector2) {
 	retPts := []*vec.Vector2{}
 	retSegs := [][2]int32{}
-	retHoles := []*vec.Vector2{}
+	retHoles := []*vec.Vector2{{999999.9, 999999.9}}
 	for _, c := range g.Contours {
 		vertexNum := len(retPts)
 		points := c.getPoints()

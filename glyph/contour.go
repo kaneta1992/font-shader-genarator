@@ -100,13 +100,14 @@ func (c *Contour) CreateInnerSegments(offset int) [][2]int32 {
 	return ret
 }
 
+// TODO: 何度も頂点かき集めたりしているので最適化したい
 func (c *Contour) getHolePoint() *vec.Vector2 {
 	points := c.getPoints()
 	segments := c.CreateInnerSegments(0)
 	// 左回りのパスは切り抜き用の穴を設定する
 	area := signedArea(points)
 	if area < 0.0 {
-		// 穴を置く起点の頂点
+		// 穴を置く起点の頂点(内部頂点の先頭から三つ)
 		v0 := points[segments[0][1]]
 		v1 := points[segments[1][1]]
 		v2 := points[segments[2][1]]
