@@ -1,6 +1,8 @@
 package path
 
 import (
+	"math"
+
 	"github.com/kaneta1992/vector/vector2"
 )
 
@@ -31,8 +33,25 @@ func (c *Contour) ToLine(end *vec.Vector2) {
 	c.nowPoint = end
 }
 
+func signedArea(points []*vec.Vector2) float64 {
+	lp := len(points)
+	area := 0.0
+	for i, _ := range points {
+		v1 := points[i]
+		v2 := points[wrap(i+1, lp)]
+		area += v1.Cross(v2)
+	}
+	return area
+}
+
 func (c *Contour) ToCurve(control, end *vec.Vector2) {
-	c.addSegment(&Curve{c.nowPoint, control, end})
+	area := signedArea([]*vec.Vector2{c.nowPoint, control, end})
+	// ほぼ直線のベジエ曲線はラインにする
+	if math.Abs(area) < 0.00001 {
+		c.ToLine(end)
+	} else {
+		c.addSegment(&Curve{c.nowPoint, control, end})
+	}
 	c.nowPoint = end
 }
 
@@ -52,20 +71,10 @@ func (c *Contour) getPoints() []*vec.Vector2 {
 	return ret
 }
 
-func signedArea(points []*vec.Vector2) float64 {
-	lp := len(points)
-	area := 0.0
-	for i, _ := range points {
-		v1 := points[i]
-		v2 := points[wrap(i+1, lp)]
-		area += v1.Cross(v2)
-	}
-	return area
-}
-
 // TODO: リンクドリストにしたい
-func (c *Contour) CreateInnerSegments(offset int) [][2]int32 {
+func (c *Contour) CreateInnerSegments(offset int) ([][2]int32, [][3]int32) {
 	ret := [][2]int32{}
+	retBezier := [][3]int32{}
 	max := c.NumPoints()
 	index := 0
 	for _, s := range c.Segments {
@@ -94,16 +103,17 @@ func (c *Contour) CreateInnerSegments(offset int) [][2]int32 {
 				//points = append(points, v2.MulScalar(irate))
 				ret = append(ret, [2]int32{int32(start + offset), int32(end + offset)})
 			}
+			retBezier = append(retBezier, [3]int32{int32(start + offset), int32(control + offset), int32(end + offset)})
 			index = end
 		}
 	}
-	return ret
+	return ret, retBezier
 }
 
 // TODO: 何度も頂点かき集めたりしているので最適化したい
 func (c *Contour) getHolePoint() *vec.Vector2 {
 	points := c.getPoints()
-	segments := c.CreateInnerSegments(0)
+	segments, _ := c.CreateInnerSegments(0)
 	// 左回りのパスは切り抜き用の穴を設定する
 	area := signedArea(points)
 	if area < 0.0 {
