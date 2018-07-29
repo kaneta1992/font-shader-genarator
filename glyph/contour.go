@@ -52,6 +52,7 @@ func (c *Contour) ToCurve(control, end *vec.Vector2) {
 	} else {
 		c.addSegment(&Curve{c.nowPoint, control, end})
 	}
+	// TODO: 重なるベジエ曲線がある場合は分割する
 	c.nowPoint = end
 }
 

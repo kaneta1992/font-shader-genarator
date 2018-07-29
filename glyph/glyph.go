@@ -1,6 +1,15 @@
 package path
 
-import vec "github.com/kaneta1992/vector/vector2"
+import (
+	"fmt"
+	"io/ioutil"
+	"log"
+	"strings"
+
+	"github.com/JoshVarga/svgparser"
+	"github.com/JoshVarga/svgparser/utils"
+	vec "github.com/kaneta1992/vector/vector2"
+)
 
 type Glyph struct {
 	Contours []*Contour
@@ -30,4 +39,41 @@ func (g *Glyph) CreatePointsAndInnerSegments() ([]*vec.Vector2, [][2]int32, []*v
 
 func (g *Glyph) AddContour(c *Contour) {
 	g.Contours = append(g.Contours, c)
+}
+
+func (g *Glyph) CreateFromSvg(filepath string) {
+	svg, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		log.Fatal("io error")
+	}
+	reader := strings.NewReader(string(svg))
+	element, _ := svgparser.Parse(reader, false)
+	d := element.Children[0].Children[0].Attributes["d"]
+	path, _ := utils.PathParser(d)
+	fmt.Printf("Number of subpaths: %d\n", len(path.Subpaths))
+
+	// TODO: 頂点をみて自動で正規化する
+	irate := 1.0 / 5000.0
+	for i, subpath := range path.Subpaths {
+		fmt.Printf("Path %d: ", i)
+		contour := &Contour{}
+		for _, command := range subpath.Commands {
+			param := []float64(command.Params)
+			// TODO: 構造体化する
+			switch command.Symbol {
+			case "M":
+				v1 := &vec.Vector2{param[0], param[1]}
+				contour.ToMove(v1.MulScalar(irate))
+			case "L":
+				v1 := &vec.Vector2{param[0], param[1]}
+				contour.ToLine(v1.MulScalar(irate))
+			case "Q":
+				v1 := &vec.Vector2{param[0], param[1]}
+				v2 := &vec.Vector2{param[2], param[3]}
+				contour.ToCurve(v1.MulScalar(irate), v2.MulScalar(irate))
+			default:
+			}
+		}
+		g.AddContour(contour)
+	}
 }
