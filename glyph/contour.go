@@ -6,6 +6,8 @@ import (
 	"github.com/kaneta1992/vector/vector2"
 )
 
+var CW bool = true
+
 type Contour struct {
 	Segments []ISegment
 	nowPoint *vec.Vector2
@@ -41,7 +43,11 @@ func signedArea(points []*vec.Vector2) float64 {
 		v2 := points[wrap(i+1, lp)]
 		area += v1.Cross(v2)
 	}
-	return area
+	if CW {
+		return area
+	} else {
+		return -area
+	}
 }
 
 func (c *Contour) ToCurve(control, end *vec.Vector2) {
