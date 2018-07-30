@@ -86,5 +86,5 @@ func main() {
 	// 書き出し
 	png.Encode(outfile, rgba)
 
-	fmt.Print(gs.CreateShaderCode())
+	fmt.Print(gs.CreateGlyphShaderCode())
 }

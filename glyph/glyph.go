@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"strings"
 
 	"github.com/JoshVarga/svgparser"
@@ -12,7 +13,9 @@ import (
 )
 
 type Glyph struct {
-	Contours []*Contour
+	Contours    []*Contour
+	LeftTop     *vec.Vector2
+	RightBottom *vec.Vector2
 }
 
 func (g *Glyph) CreatePointsAndInnerSegments() ([]*vec.Vector2, [][2]int32, []*vec.Vector2, [][3]int32) {
@@ -41,6 +44,13 @@ func (g *Glyph) AddContour(c *Contour) {
 	g.Contours = append(g.Contours, c)
 }
 
+func (g *Glyph) updateBounds(p *vec.Vector2) {
+	g.LeftTop.X = math.Min(g.LeftTop.X, p.X)
+	g.LeftTop.Y = math.Min(g.LeftTop.Y, p.Y)
+	g.RightBottom.X = math.Max(g.RightBottom.X, p.X)
+	g.RightBottom.Y = math.Max(g.RightBottom.Y, p.Y)
+}
+
 func (g *Glyph) CreateFromSvg(filepath string) {
 	svg, err := ioutil.ReadFile(filepath)
 	if err != nil {
@@ -51,6 +61,9 @@ func (g *Glyph) CreateFromSvg(filepath string) {
 	d := element.Children[0].Children[0].Attributes["d"]
 	path, _ := utils.PathParser(d)
 	fmt.Printf("Number of subpaths: %d\n", len(path.Subpaths))
+
+	g.LeftTop = &vec.Vector2{999999.9, 999999.9}
+	g.RightBottom = &vec.Vector2{-999999.9, -999999.9}
 
 	// TODO: 頂点をみて自動で正規化する
 	irate := 1.0 / 5000.0
@@ -63,14 +76,22 @@ func (g *Glyph) CreateFromSvg(filepath string) {
 			switch command.Symbol {
 			case "M":
 				v1 := &vec.Vector2{param[0], param[1]}
-				contour.ToMove(v1.MulScalar(irate))
+				v1 = v1.MulScalar(irate)
+				contour.ToMove(v1)
+				g.updateBounds(v1)
 			case "L":
 				v1 := &vec.Vector2{param[0], param[1]}
-				contour.ToLine(v1.MulScalar(irate))
+				v1 = v1.MulScalar(irate)
+				contour.ToLine(v1)
+				g.updateBounds(v1)
 			case "Q":
 				v1 := &vec.Vector2{param[0], param[1]}
 				v2 := &vec.Vector2{param[2], param[3]}
-				contour.ToCurve(v1.MulScalar(irate), v2.MulScalar(irate))
+				v1 = v1.MulScalar(irate)
+				v2 = v2.MulScalar(irate)
+				contour.ToCurve(v1, v2)
+				g.updateBounds(v1)
+				g.updateBounds(v2)
 			default:
 			}
 		}

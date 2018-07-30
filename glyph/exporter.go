@@ -63,7 +63,7 @@ func JoinChunks(chunks [][]string, chunkSep, strSep string) string {
 	return strings.Join(strs, chunkSep)
 }
 
-func (g *GlyphShader) CreateShaderCode() string {
+func (g *GlyphShader) CreateGlyphShaderCode() string {
 	g.createGlyphs()
 	templateFunc := "float _%X(vec2 uv) {    // %s\n    float d = 10000.0;\n"
 	templateB1 := "IB(%d,%d,%d)"
