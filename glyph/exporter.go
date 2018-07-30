@@ -65,12 +65,13 @@ func JoinChunks(chunks [][]string, chunkSep, strSep string) string {
 
 func (g *GlyphShader) CreateShaderCode() string {
 	g.createGlyphs()
-	template_B1 := "IB(%d,%d,%d)"
-	template_B2 := "IB2(%d,%d,%d)"
-	template_T := "IT(%d,%d,%d)"
-	template_VEC := "    vec2 v[%d] = vec2[%d](\n"
+	templateFunc := "float _%X(vec2 uv) {    // %s\n    float d = 10000.0;\n"
+	templateB1 := "IB(%d,%d,%d)"
+	templateB2 := "IB2(%d,%d,%d)"
+	templateT := "IT(%d,%d,%d)"
+	templateVEC := "    vec2 v[%d] = vec2[%d](\n"
 	str := ""
-	for _, glyph := range g.glyphs {
+	for r, glyph := range g.glyphs {
 		points, ss, ho, beziers := glyph.CreatePointsAndInnerSegments()
 		log.Print(points)
 		log.Print(ss)
@@ -82,6 +83,8 @@ func (g *GlyphShader) CreateShaderCode() string {
 		log.Print(verts)
 		log.Print(faces)
 
+		str += fmt.Sprintf(templateFunc, r, string(r))
+
 		vertStrs := []string{}
 		for _, v := range points {
 			// GLSLにポートするのでYを反転する
@@ -91,14 +94,14 @@ func (g *GlyphShader) CreateShaderCode() string {
 
 		num := len(vertStrs)
 
-		str += fmt.Sprintf(template_VEC, num, num)
+		str += fmt.Sprintf(templateVEC, num, num)
 
 		vertChunks := Chunks(vertStrs, 6)
 		str += "        " + JoinChunks(vertChunks, ",\n        ", ",") + "\n    );\n"
 
 		geomStrs := []string{}
 		for _, f := range faces {
-			geomStrs = append(geomStrs, fmt.Sprintf(template_T, f[0], f[1], f[2]))
+			geomStrs = append(geomStrs, fmt.Sprintf(templateT, f[0], f[1], f[2]))
 		}
 		for _, b := range beziers {
 			v0 := points[b[0]]
@@ -106,14 +109,15 @@ func (g *GlyphShader) CreateShaderCode() string {
 			v2 := points[b[2]]
 			area := signedArea([]*vec.Vector2{v0, v1, v2})
 			if area < 0.0 {
-				geomStrs = append(geomStrs, fmt.Sprintf(template_B2, b[0], b[1], b[2]))
+				geomStrs = append(geomStrs, fmt.Sprintf(templateB2, b[0], b[1], b[2]))
 			} else {
-				geomStrs = append(geomStrs, fmt.Sprintf(template_B1, b[0], b[1], b[2]))
+				geomStrs = append(geomStrs, fmt.Sprintf(templateB1, b[0], b[1], b[2]))
 			}
 		}
 
 		geomChunks := Chunks(geomStrs, 10)
 		str += "    " + JoinChunks(geomChunks, "\n    ", "") + "\n"
+		str += "    return d;\n}\n"
 	}
 
 	return str
