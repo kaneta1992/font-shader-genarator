@@ -47,12 +47,27 @@ func (g *GlyphShader) createGlyphs() {
 func (g *GlyphShader) AddString(str string) {
 	g.strings = append(g.strings, str)
 }
+func Chunks(strs []string, n int) [][]string {
+	num := len(strs)
+	ret := [][]string{}
+	for i := 0; i <= (num-1)/n; i++ {
+		ret = append(ret, strs[i*n:Min(i*n+n, num)])
+	}
+	return ret
+}
+func JoinChunks(chunks [][]string, chunkSep, strSep string) string {
+	strs := []string{}
+	for _, c := range chunks {
+		strs = append(strs, strings.Join(c, strSep))
+	}
+	return strings.Join(strs, chunkSep)
+}
 
 func (g *GlyphShader) CreateShaderCode() string {
 	g.createGlyphs()
-	template_B1 := "    IB(%d,%d,%d)"
-	template_B2 := "    IB2(%d,%d,%d)"
-	template_T := "    IT(%d,%d,%d)"
+	template_B1 := "IB(%d,%d,%d)"
+	template_B2 := "IB2(%d,%d,%d)"
+	template_T := "IT(%d,%d,%d)"
 	template_VEC := "    vec2 v[%d] = vec2[%d](\n"
 	str := ""
 	for _, glyph := range g.glyphs {
@@ -67,29 +82,23 @@ func (g *GlyphShader) CreateShaderCode() string {
 		log.Print(verts)
 		log.Print(faces)
 
-		vertsStr := []string{}
+		vertStrs := []string{}
 		for _, v := range points {
 			// GLSLにポートするのでYを反転する
 			v.Y *= -1.0
-			vertsStr = append(vertsStr, v.ToGLSLString(4))
+			vertStrs = append(vertStrs, v.ToGLSLString(4))
 		}
 
-		num := len(vertsStr)
+		num := len(vertStrs)
 
 		str += fmt.Sprintf(template_VEC, num, num)
-		for i := 0; i < num/6+1; i++ {
-			arr := vertsStr[i*6 : Min(i*6+6, num)]
-			str += "        "
-			str += strings.Join(arr, ",")
-			if i != num/6 {
-				str += ","
-			}
-			str += "\n"
-		}
-		str += "    );\n"
+
+		vertChunks := Chunks(vertStrs, 6)
+		str += "        " + JoinChunks(vertChunks, ",\n        ", ",") + "\n    );\n"
+
+		geomStrs := []string{}
 		for _, f := range faces {
-			str += fmt.Sprintf(template_T, f[0], f[1], f[2])
-			str += "\n"
+			geomStrs = append(geomStrs, fmt.Sprintf(template_T, f[0], f[1], f[2]))
 		}
 		for _, b := range beziers {
 			v0 := points[b[0]]
@@ -97,12 +106,14 @@ func (g *GlyphShader) CreateShaderCode() string {
 			v2 := points[b[2]]
 			area := signedArea([]*vec.Vector2{v0, v1, v2})
 			if area < 0.0 {
-				str += fmt.Sprintf(template_B2, b[0], b[1], b[2])
+				geomStrs = append(geomStrs, fmt.Sprintf(template_B2, b[0], b[1], b[2]))
 			} else {
-				str += fmt.Sprintf(template_B1, b[0], b[1], b[2])
+				geomStrs = append(geomStrs, fmt.Sprintf(template_B1, b[0], b[1], b[2]))
 			}
-			str += "\n"
 		}
+
+		geomChunks := Chunks(geomStrs, 10)
+		str += "    " + JoinChunks(geomChunks, "\n    ", "") + "\n"
 	}
 
 	return str
