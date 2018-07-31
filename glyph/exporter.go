@@ -3,6 +3,7 @@ package path
 import (
 	"fmt"
 	"log"
+	"math"
 	"os/exec"
 	"strings"
 
@@ -63,6 +64,72 @@ func JoinChunks(chunks [][]string, chunkSep, strSep string) string {
 	return strings.Join(strs, chunkSep)
 }
 
+func (g *GlyphShader) CreateLGlyphShaderCode() string {
+	g.createGlyphs()
+	templateFunc := "float _%X(vec2 uv) {    // %s\n    float d = 10000.0;\n"
+	templateB1 := "LIB(%d,%d,%d)"
+	templateB2 := "LIB2(%d,%d,%d)"
+	templateT := "LIT(%d,%d,%d)"
+	templateVEC := "    vec2 v[%d] = vec2[%d](\n"
+	str := ""
+	for r, glyph := range g.glyphs {
+		points, ss, ho, beziers := glyph.CreatePointsAndInnerSegments()
+		log.Print(points)
+		log.Print(ss)
+		log.Print(ho)
+		log.Print(beziers)
+
+		verts, faces := triangle.ConstrainedDelaunay(vec.Vec2ToFloat64(points), ss, vec.Vec2ToFloat64(ho))
+		log.Print("-------------------------------")
+		log.Print(verts)
+		log.Print(faces)
+
+		str += fmt.Sprintf(templateFunc, r, string(r))
+
+		vertStrs := []string{}
+		for _, v := range points {
+			// GLSLにポートするのでYを反転する
+			v.Y *= -1.0
+			vertStrs = append(vertStrs, v.ToGLSLString(4))
+		}
+
+		num := len(vertStrs)
+
+		str += fmt.Sprintf(templateVEC, num, num)
+
+		vertChunks := Chunks(vertStrs, 6)
+		str += "        " + JoinChunks(vertChunks, ",\n        ", ",") + "\n    );\n"
+
+		geomStrs := []string{}
+		for _, f := range faces {
+			v0 := points[f[0]]
+			v1 := points[f[1]]
+			v2 := points[f[2]]
+			area := signedArea([]*vec.Vector2{v0, v1, v2})
+			if math.Abs(area) > 0.0003 {
+				geomStrs = append(geomStrs, fmt.Sprintf(templateT, f[0], f[1], f[2]))
+			}
+		}
+		for _, b := range beziers {
+			v0 := points[b[0]]
+			v1 := points[b[1]]
+			v2 := points[b[2]]
+			area := signedArea([]*vec.Vector2{v0, v1, v2})
+			if area < 0.0 {
+				geomStrs = append(geomStrs, fmt.Sprintf(templateB2, b[0], b[1], b[2]))
+			} else {
+				geomStrs = append(geomStrs, fmt.Sprintf(templateB1, b[0], b[1], b[2]))
+			}
+		}
+
+		geomChunks := Chunks(geomStrs, 10)
+		str += "    " + JoinChunks(geomChunks, "\n    ", "") + "\n"
+		str += "    return d;\n}\n"
+	}
+
+	return str
+}
+
 func (g *GlyphShader) CreateGlyphShaderCode() string {
 	g.createGlyphs()
 	templateFunc := "float _%X(vec2 uv) {    // %s\n    float d = 10000.0;\n"
@@ -101,7 +168,13 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 
 		geomStrs := []string{}
 		for _, f := range faces {
-			geomStrs = append(geomStrs, fmt.Sprintf(templateT, f[0], f[1], f[2]))
+			v0 := points[f[0]]
+			v1 := points[f[1]]
+			v2 := points[f[2]]
+			area := signedArea([]*vec.Vector2{v0, v1, v2})
+			if math.Abs(area) > 0.000075 {
+				geomStrs = append(geomStrs, fmt.Sprintf(templateT, f[0], f[1], f[2]))
+			}
 		}
 		for _, b := range beziers {
 			v0 := points[b[0]]
