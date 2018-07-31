@@ -122,3 +122,17 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 
 	return str
 }
+
+func (g *GlyphShader) CreateStringShaderCode() string {
+	templateFunc := "float _STR%d(vec2 uv) {    // %s\n    float d = 10000.0;\n"
+	templateGlyph := "    d = min(d, _%X(uv));uv.x -= %.4f;\n"
+	str := ""
+	for i, s := range g.strings {
+		str += fmt.Sprintf(templateFunc, i, s)
+		for _, r := range s {
+			str += fmt.Sprintf(templateGlyph, r, g.glyphs[r].RightBottom.X)
+		}
+		str += "    return d;\n}\n"
+	}
+	return str
+}
