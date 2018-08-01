@@ -69,9 +69,12 @@ func drawPts(verts []*vec.Vector2, col color.RGBA) {
 }
 
 func main() {
-	tpath.CW = false
-	gs := tpath.NewExporter("ns.ttf")
-	gs.AddString("欺く為のフェイントです")
+	//tpath.CW = false
+	//gs := tpath.NewExporter("ns.ttf")
+	//gs.AddString("ライバルを")
+	//gs.AddString("欺く為のフェイントです")
+	gs := tpath.NewExporter("hkgyokk.ttf")
+	gs.AddString("我無")
 
 	rgba := image.NewRGBA(image.Rect(0, 0, int(v*2.0), int(v*2.0)))
 	gc = draw2dimg.NewGraphicContext(rgba)
@@ -86,5 +89,6 @@ func main() {
 	// 書き出し
 	png.Encode(outfile, rgba)
 
-	fmt.Print(gs.CreateGlyphShaderCode())
+	fmt.Println(gs.CreateGlyphShaderCode())
+	fmt.Println(gs.CreateStringShaderCode())
 }
