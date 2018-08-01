@@ -167,6 +167,7 @@ func (g *GlyphShader) CreateLGlyphShaderCode() string {
 func (g *GlyphShader) CreateGlyphShaderCode() string {
 	g.createGlyphs()
 	templateFunc := "float _%X(vec2 uv) {    // %s\n    float d = 10000.0;\n"
+	templateRectTest := "    if (udRect(uv - %s, %s) == 0.0) {\n"
 	templateB1 := "IB(%d,%d,%d)"
 	templateB2 := "IB2(%d,%d,%d)"
 	templateT := "IT(%d,%d,%d)"
@@ -183,9 +184,17 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 		log.Print("-------------------------------")
 		log.Print(verts)
 		log.Print(faces)
-		points, faces, beziers = decimateTriangle(points, faces, beziers, 0.000075)
+		points, faces, beziers = decimateTriangle(points, faces, beziers, 0.0000025)
+		//points, faces, beziers = decimateTriangle(points, faces, beziers, 0.0003)
 
+		// 関数定義
 		str += fmt.Sprintf(templateFunc, r, string(r))
+
+		// 矩形テスト
+		center := glyph.LeftTop.Add(glyph.RightBottom).MulScalar(0.5)
+		size := glyph.LeftTop.Sub(glyph.RightBottom).Abs()
+		center.Y *= -1.0
+		str += fmt.Sprintf(templateRectTest, center.ToGLSLString(4), size.MulScalar(0.5).ToGLSLString(4))
 
 		vertStrs := []string{}
 		for _, v := range points {
@@ -196,15 +205,18 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 
 		num := len(vertStrs)
 
+		// 頂点定義
 		str += fmt.Sprintf(templateVEC, num, num)
-
 		vertChunks := Chunks(vertStrs, 6)
 		str += "        " + JoinChunks(vertChunks, ",\n        ", ",") + "\n    );\n"
 
+		// 三角形内外判定
 		geomStrs := []string{}
 		for _, f := range faces {
 			geomStrs = append(geomStrs, fmt.Sprintf(templateT, f[0], f[1], f[2]))
 		}
+
+		// ベジエ内外判定
 		for _, b := range beziers {
 			v0 := points[b[0]]
 			v1 := points[b[1]]
@@ -219,7 +231,7 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 
 		geomChunks := Chunks(geomStrs, 10)
 		str += "    " + JoinChunks(geomChunks, "\n    ", "") + "\n"
-		str += "    return d;\n}\n"
+		str += "    }\n    return d;\n}\n"
 	}
 
 	return str
