@@ -54,7 +54,7 @@ func (c *Contour) ToCurve(control, end *vec.Vector2) {
 	area := signedArea([]*vec.Vector2{c.nowPoint, control, end})
 	// // TODO: オプションで閾値設定できるようにする
 	// ほぼ直線のベジエ曲線はラインにする
-	if math.Abs(area) < 0.0005 {
+	if math.Abs(area) < 0.0001 {
 		c.ToLine(end)
 	} else {
 		c.addSegment(&Curve{c.nowPoint, control, end})

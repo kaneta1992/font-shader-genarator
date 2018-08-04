@@ -184,7 +184,7 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 		log.Print("-------------------------------")
 		log.Print(verts)
 		log.Print(faces)
-		points, faces, beziers = decimateTriangle(points, faces, beziers, 0.0000025)
+		points, faces, beziers = decimateTriangle(points, faces, beziers, 0.00002)
 		//points, faces, beziers = decimateTriangle(points, faces, beziers, 0.0003)
 
 		// 関数定義

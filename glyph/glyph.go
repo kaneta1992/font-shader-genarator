@@ -66,7 +66,7 @@ func (g *Glyph) CreateFromSvg(filepath string) {
 	g.RightBottom = &vec.Vector2{-999999.9, -999999.9}
 
 	// TODO: 頂点をみて自動で正規化する
-	irate := 1.0 / 5000.0
+	irate := 1.0 / 1000.0
 	for i, subpath := range path.Subpaths {
 		fmt.Printf("Path %d: ", i)
 		contour := &Contour{}
