@@ -168,10 +168,9 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 	g.createGlyphs()
 	templateFunc := "float _%X(vec2 uv) {    // %s\n    float d = 10000.0;\n"
 	templateRectTest := "    if (udRect(uv - %s, %s) == 0.0) {\n"
-	templateB1 := "IB(%d,%d,%d)"
-	templateB2 := "IB2(%d,%d,%d)"
-	templateT := "IT(%d,%d,%d)"
-	templateVEC := "    vec2 v[%d] = vec2[%d](\n"
+	templateB1 := "IB(%s,%s,%s)"
+	templateB2 := "IB2(%s,%s,%s)"
+	templateT := "IT(%s,%s,%s)"
 	str := ""
 	for r, glyph := range g.glyphs {
 		points, ss, ho, beziers := glyph.CreatePointsAndInnerSegments()
@@ -203,17 +202,17 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 			vertStrs = append(vertStrs, v.ToGLSLString(4))
 		}
 
-		num := len(vertStrs)
+		//num := len(vertStrs)
 
 		// 頂点定義
-		str += fmt.Sprintf(templateVEC, num, num)
-		vertChunks := Chunks(vertStrs, 6)
-		str += "        " + JoinChunks(vertChunks, ",\n        ", ",") + "\n    );\n"
+		// str += fmt.Sprintf(templateVEC, num, num)
+		// vertChunks := Chunks(vertStrs, 6)
+		// str += "        " + JoinChunks(vertChunks, ",\n        ", ",") + "\n    );\n"
 
 		// 三角形内外判定
 		geomStrs := []string{}
 		for _, f := range faces {
-			geomStrs = append(geomStrs, fmt.Sprintf(templateT, f[0], f[1], f[2]))
+			geomStrs = append(geomStrs, fmt.Sprintf(templateT, vertStrs[f[0]], vertStrs[f[1]], vertStrs[f[2]]))
 		}
 
 		// ベジエ内外判定
@@ -222,11 +221,13 @@ func (g *GlyphShader) CreateGlyphShaderCode() string {
 			v1 := points[b[1]]
 			v2 := points[b[2]]
 			area := signedArea([]*vec.Vector2{v0, v1, v2})
+			temp := ""
 			if area < 0.0 {
-				geomStrs = append(geomStrs, fmt.Sprintf(templateB2, b[0], b[1], b[2]))
+				temp = templateB2
 			} else {
-				geomStrs = append(geomStrs, fmt.Sprintf(templateB1, b[0], b[1], b[2]))
+				temp = templateB1
 			}
+			geomStrs = append(geomStrs, fmt.Sprintf(temp, vertStrs[b[0]], vertStrs[b[1]], vertStrs[b[2]]))
 		}
 
 		geomChunks := Chunks(geomStrs, 10)
